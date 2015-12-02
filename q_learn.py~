@@ -36,7 +36,7 @@ class FuzzyLearner:
                             mf = fuzz.gbellmf(self.x, v['shp'])
                         aggregated.append(mf)
                         points.append(v['pts'])
-                    self.rules[subset] = (aggregated, points)
+                        self.rules[subset] = (aggregated, points)
 
     # Save Matrix
     def save_matrix(self, filename):

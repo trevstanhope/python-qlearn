@@ -5,7 +5,7 @@ import skfuzzy as fuzz
 import sklearn
 import matplotlib.pyplot as plt
 
-class FuzzyLearner:
+class QLearner:
     """
     """
     def __init__(self, rules, Q=None):
@@ -21,22 +21,20 @@ class FuzzyLearner:
                 rules = json.loads(jsonfile.read())
                 self.actions = rules['actions']
                 self.state = rules['state']
-                self.rules = rules['results']
+                self.aggregated = []
+                self.points = []
+                self.rules = {}
                 self.x = np.arange(self.state['min'], self.state['max'])
-                for subset, parts in self.rules.items():
-                    aggregated = []
-                    points = []
-                    for n, v in parts.items():
-                        print n
-                        if v['mf'] == 'tri':
-                            mf = fuzz.trimf(self.x, v['shp'])
-                        if v['mf'] == 'trap':
-                            mf = fuzz.trapmf(self.x, v['shp'])
-                        elif v['mf'] == 'gbell':
-                            mf = fuzz.gbellmf(self.x, v['shp'])
-                        aggregated.append(mf)
-                        points.append(v['pts'])
-                    self.rules[subset] = (aggregated, points)
+                for k,v in rules['results'].iteritems():
+                    if v['mf'] == 'tri':
+                        mf = fuzz.trimf(self.x, v['shp'])
+                    if v['mf'] == 'trap':
+                        mf = fuzz.trapmf(self.x, v['shp'])
+                    elif v['mf'] == 'gbell':
+                        mf = fuzz.gbellmf(self.x, v['shp'])
+                    self.rules[k] = mf
+                    self.aggregated.append(mf)
+                    self.points.append(v['pts'])
 
     # Save Matrix
     def save_matrix(self, filename):
@@ -74,11 +72,9 @@ class FuzzyLearner:
         Returns the class (0 to n) o associated with the result.
         """
         try:
-            for subset, rules in self.rules.items():
-                aggregated, points = rules
-                m = [fuzz.interp_membership(self.x, mf, r) for mf in aggregated] # Calculate membership values
-                c = np.argmax(m)
-                return c
+            m = [fuzz.interp_membership(self.x, mf, r) for mf in self.aggregated] # Calculate membership values       
+            c = np.argmax(m)
+            return c
         except Exception as error:
             raise error
 
@@ -95,23 +91,23 @@ class FuzzyLearner:
         return p
 
 if __name__ == '__main__':
-    fl = FuzzyLearner("rules.json", Q="matrix.json")
-    fl.new_matrix((640,640,10), (len(fl.actions),))
+    ql = QLearner("rules.json", Q="matrix.json")
+    ql.new_matrix((640,640,10), (len(ql.actions),))
     if True:
         t = np.linspace(-16*np.pi, 160*np.pi, 100)
         x = 30 * np.sin(t)
         dx = 30 * np.sin(t)
-        vel = 1
+        vel = 10
         for v in range(0, vel):
             for e in x.astype(int).tolist():
                 for de in dx.astype(int).tolist():
                     r = e + int(5*np.random.normal())
-                    a = fl.guess((e, de, v)) # guess action
-                    #print fl.actions[a]
-                    # c = fl.classify(e) # classify result, do not train matrix
-                    fl.train((e, de, v), a, r) # train matrix
-            for i in range(len(fl.actions)):        
-                plt.plot(fl.Q[:,:,0,i])
+                    a = ql.guess((e, de, v)) # guess action
+                    #print ql.actions[a]
+                    # c = ql.classify(e) # classify result, do not train matrix
+                    ql.train((e, de, v), a, r) # train matrix
+            for i in range(len(ql.actions)):        
+                plt.plot(ql.Q[:,:,0,i])
             plt.show()
-    fl.save_matrix("matrix.json")
+    ql.save_matrix("matrix.json")
     print 'end'
